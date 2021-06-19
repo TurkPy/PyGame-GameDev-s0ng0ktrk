@@ -13,3 +13,14 @@ pip install pygame
 py/python3 pygame2.py
 
 //////////////////////////
+
+
+####Main Controls####
+
+* Press 'E' to open inventory
+* Press 'P' to toggle particle effect
+* W,A,S,D to movement
+* Arrow keys to movement
+* Press 'F5' to restart game
+
+//////////////////////////
