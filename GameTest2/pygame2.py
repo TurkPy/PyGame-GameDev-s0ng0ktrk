@@ -876,7 +876,6 @@ while True:
                 else:
                     if mouse_on_blocks == False:
                         particle_bool = True
-                        print("TRUE DONDU")
 
             if event.key == K_F5:
                 print("Restart")
