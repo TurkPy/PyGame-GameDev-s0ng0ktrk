@@ -1,4 +1,4 @@
-import pygame, sys, os, random
+import pygame, sys, os, random, turtle
 from pygame.locals import *
 
 pygame.init()
@@ -107,6 +107,36 @@ def collision_test(rect, tiles):
             hit_list.append(tile)
 
     return hit_list
+
+def move_particle(rects, tiles):
+    collision_types_of_particles = {'top': False, 'bottom': False, 'right': False, 'left': False}
+
+    
+    for momentum in momentum_list:
+        for rect in rects:    
+            rect.x += momentum[0]
+            hit_list = collision_test(rect, tiles)
+            for tile in hit_list:
+                if momentum[0] > 0:
+                    rect.right = tile.left
+                    collision_types_of_particles['right'] = True
+                elif momentum[0] < 0:
+                    rect.left = tile.right
+                    collision_types_of_particles['left'] = True
+
+    for momentum in momentum_list:
+        for rect in rects:
+            rect.y += momentum[1]
+            hit_list = collision_test(rect, tiles)
+            for tile in hit_list:
+                if momentum[1] > 0:
+                    rect.bottom = tile.top
+                    collision_types_of_particles['bottom'] = True
+                elif momentum[1] < 0:
+                    rect.top = tile.bottom
+                    collision_types_of_particles['top'] = True
+
+    return rects, collision_types_of_particles
 
 def move(rect, movement, tiles):
     collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
@@ -488,12 +518,35 @@ def change_items_slot(i2_x,i2_y):
     i1_x = selected_item[0]
     i1_y = selected_item[1]
 
-    slot_list_with_coors[i1_x][i1_y][0] = slot_list_with_coors[i2_x][i2_y][0]
-    slot_list_with_coors[i1_x][i1_y][1] = slot_list_with_coors[i2_x][i2_y][1]
+        
+    try:
+        slot_list_with_coors[i1_x][i1_y][0] = slot_list_with_coors[i2_x][i2_y][0]
+        slot_list_with_coors[i1_x][i1_y][1] = slot_list_with_coors[i2_x][i2_y][1]
+
+    except:
+        pass
 
 
+def control_mouse_on_blocks():
 
+    for i in range(len(non_air_tile_rects)):
 
+            tile_coor_x1 = non_air_tile_rects[i][0] - scroll[0]
+            tile_coor_x2 = non_air_tile_rects[i][0] - scroll[0] + 32
+
+            tile_coor_y1 = non_air_tile_rects[i][1] - scroll[1]
+            tile_coor_y2 = non_air_tile_rects[i][1] - scroll[1] + 32
+
+            global mouse_on_blocks
+
+            if mouse_pos[0]/2 > tile_coor_x1 and mouse_pos[0]/2 < tile_coor_x2 and mouse_pos[1]/2 > tile_coor_y1 and mouse_pos[1]/2 < tile_coor_y2:
+                
+                mouse_on_blocks = True
+                break
+
+            else:
+
+                mouse_on_blocks = False
 #############
 
 # VARIABLES & BOOLEANS #
@@ -508,6 +561,8 @@ inventory_is_open = False
 bool1 = False
 bool2 = False
 dragging = False
+particle_bool = False
+mouse_on_blocks = False
 
 playerYMomentum = 0 # Player Vertical Momentum
 airTimer = 0
@@ -541,6 +596,7 @@ mouse_pos = [0,0]
 slot_list = [[],[],[],[],[],[]]
 slot_list_with_item_id = [[],[],[],[],[],[]]
 slot_list_with_coors = [[],[],[],[],[],[]]
+particles = []
 item_list = ['dirt','grass']
 block_type = '1'
 pressed_number = 0
@@ -579,6 +635,8 @@ while True:
     if grass_sound_timer > 0:
         grass_sound_timer -= 1
 
+
+
 # SCROLL & PARALLAX #
 
     true_scroll[0] += (player_rect.x-true_scroll[0]-144)/20
@@ -612,6 +670,8 @@ while True:
 # DRAW MAP #
 
     tile_rects = []
+    non_air_tile_rects = []
+    non_air_tile_rects_with_scroll = []
     y =  0
     for row in game_map:
         x = 0
@@ -623,6 +683,8 @@ while True:
                 display.blit(grass, (x * TILE_SIZE - scroll[0], y * TILE_SIZE - scroll[1]))
             if tile == '1' or tile == '2':
                 tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                non_air_tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                non_air_tile_rects_with_scroll.append(pygame.Rect(x * TILE_SIZE - scroll[0] , y * TILE_SIZE - scroll[1] , TILE_SIZE, TILE_SIZE))
             if tile == '0':
                 tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE , 0, 0))
             x += 1
@@ -630,7 +692,78 @@ while True:
 
 #############
 
+    control_mouse_on_blocks()
+
+    print(mouse_on_blocks)
+    particles.append([[mouse_pos[0] / 2,mouse_pos[1] / 2],[random.randint(0,20) / 10 - 1, -2], random.randint(4,6)])
+    particle_tiles = []
+    particle_momentum = []
+    
+    for particle in particles:
+
+        particle_momentum.append(particle[1])
+
+
+    for particle in particles:
+
+        if particle_bool and mouse_on_blocks == False:
+
+            pygame.draw.circle(display, (255,255,255), [int(particle[0][0]),int(particle[0][1])], int(particle[2]))
+            particle[0][0] += particle[1][0]
+            particle[0][1] += particle[1][1]
+            particle[2] -= 0.035
+            particle[1][1] += 0.3
+
+            particle_tiles.append(pygame.Rect(particle[0][0],particle[0][1],particle[2],particle[2]))
+
+            if particle[2] <= 0:
+                particles.remove(particle)
+
+    if particle_bool:
+
+        for i in range(len(non_air_tile_rects_with_scroll)):
+
+            tile_coor_x1 = non_air_tile_rects_with_scroll[i][0] - scroll[0]
+            tile_coor_x2 = non_air_tile_rects_with_scroll[i][0] - scroll[0] + 32
+
+            tile_coor_y1 = non_air_tile_rects_with_scroll[i][1] - scroll[1]
+            tile_coor_y2 = non_air_tile_rects_with_scroll[i][1] - scroll[1] + 32
+
+            for particle in particles:
+
+                if particle_bool:
+                    
+                    if particle[0][0] > tile_coor_x1 and particle[0][0] < tile_coor_x2 and particle[0][1] > tile_coor_y1 and particle[0][1] < tile_coor_y2:
+                     pass
+
+                     """       
+                                                                                       particle[1][0] = -0.7 * particle[1][0]
+                                                                                       particle[1][1] *= 0.95
+                                                                                       particle[0][0] += particle[1][0] * 2
+                                                               
+                                                                                       particle[1][1] = -0.7 * particle[1][1]
+                                                                                       particle[1][0] *= 0.95
+                                                                                       particle[0][1] += particle[1][1] * 2
+                                                                                       """
 #  PLAYER MOVEMENT & PHYSICS #
+    
+    for tile in non_air_tile_rects_with_scroll:
+        
+        for index, particle_tile in enumerate(particle_tiles):
+            
+            #if pygame.Rect.contains(tile,particle_tile):
+                #print("COLLIDE")
+
+            if pygame.Rect.colliderect(particle_tile,tile):
+                #print("COLLIDE 2")
+                try:
+                    particles.pop(index)
+                except:
+                    pass
+
+
+    #particle_tiles, collision_types_of_particles = move_particle(particle_tiles, non_air_tile_rects_with_scroll, particle_momentum)
+
 
     player_movement = [0,0]
 
@@ -733,6 +866,17 @@ while True:
                     jump_sound.play()
                     first_time = False
                     falling = True
+
+            if event.key == K_p:
+
+                if particle_bool:
+                    particle_bool = False
+                    particles = []
+
+                else:
+                    if mouse_on_blocks == False:
+                        particle_bool = True
+                        print("TRUE DONDU")
 
             if event.key == K_F5:
                 print("Restart")
