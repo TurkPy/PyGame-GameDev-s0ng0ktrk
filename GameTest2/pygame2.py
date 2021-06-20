@@ -1,7 +1,8 @@
-import pygame, sys, os, random, turtle
+import pygame, sys, os, random, turtle, ctypes
 from pygame.locals import *
 
 pygame.init()
+pygame.font.init()
 pygame.mixer.pre_init(44100, -16, 2, 512)
 
 # LOADING STUFFS #
@@ -28,12 +29,16 @@ pygame.mixer.music.set_volume(0.7)
 # MAIN DEFİNİTİONS #
 
 clock = pygame.time.Clock()
+user32 = ctypes.windll.user32
+real_resolution = (user32.GetSystemMetrics(0),user32.GetSystemMetrics(1))
 
 FPS = 90
-WINDOW_SIZE = (600,400)
+window_width = 600
+window_height = 400
+WINDOW_SIZE = (window_width,window_height)
 TILE_SIZE = grass.get_width()
 window = pygame.display.set_mode(WINDOW_SIZE,0,32)
-display = pygame.Surface((300,200))
+display = pygame.Surface((window_width/2,window_height/2))
 pygame.display.set_caption('GameDev')
 background_object = [[0.25,[120,10,70,400]],[0.25,[280,30,40,400]],[0.5,[-20,40,40,400]],[0.5,[70,90,100,400]],[0.5,[250,80,120,400]],[0.5,[400,50,140,400]]]
 
@@ -472,14 +477,18 @@ def put_item_on_inventory(x,y):
 
 
 
-            if slot_list_with_item_id[i][i2] == 'dirt':
-                window.blit(dirt_image,(slot_list_with_coors[i][i2][0] + (empty_bar.get_width() - scale_x) / 2 , slot_list_with_coors[i][i2][1] + (empty_bar.get_height() - scale_y) / 2))
+            try:
+                if slot_list_with_item_id[i][i2] == 'dirt':
+                    window.blit(dirt_image,(slot_list_with_coors[i][i2][0] + (empty_bar.get_width() - scale_x) / 2 , slot_list_with_coors[i][i2][1] + (empty_bar.get_height() - scale_y) / 2))
 
 
-            elif slot_list_with_item_id[i][i2] == 'grass':
-                window.blit(grass_image,(slot_list_with_coors[i][i2][0] + (empty_bar.get_width() - scale_x) / 2 , slot_list_with_coors[i][i2][1] + (empty_bar.get_height() - scale_y) / 2))
+                elif slot_list_with_item_id[i][i2] == 'grass':
+                    window.blit(grass_image,(slot_list_with_coors[i][i2][0] + (empty_bar.get_width() - scale_x) / 2 , slot_list_with_coors[i][i2][1] + (empty_bar.get_height() - scale_y) / 2))
 
-            else:
+                else:
+                    pass
+
+            except IndexError as error:
                 pass
 
 
@@ -563,6 +572,7 @@ bool2 = False
 dragging = False
 particle_bool = False
 mouse_on_blocks = False
+fullscreen = False
 
 playerYMomentum = 0 # Player Vertical Momentum
 airTimer = 0
@@ -600,6 +610,8 @@ particles = []
 item_list = ['dirt','grass']
 block_type = '1'
 pressed_number = 0
+current_FPS = FPS
+
 mini_map = pygame.transform.scale(display, (150,100))
 
 frame_difference = (map_frame.get_width() - mini_map.get_width()) / 2
@@ -619,14 +631,55 @@ slot_coors = slot_list_with_coors
 create_slot_list_with_item_id()
 
 add_item_to_inventory_list("dirt")
-print(slot_list_with_item_id[0])
+#print(slot_list_with_item_id[0])
 add_item_to_inventory_list("grass")
-print(slot_list_with_item_id[0])
-print(slot_coors[0])
+#print(slot_list_with_item_id[0])
+#print(slot_coors[0])
+
+
+myfont = pygame.font.SysFont('Arial', 30)
+
 ######################
 
 while True:
+
+    if fullscreen:
+        #print("FS")
+        WINDOW_SIZE = (real_resolution)
+        window = pygame.display.set_mode(WINDOW_SIZE, pygame.FULLSCREEN, vsync = 0)
+        display = pygame.Surface((real_resolution[0]/2,real_resolution[1]/2))
+        
+        mini_map = pygame.transform.scale(display, (150,100))
+
+        frame_difference = (map_frame.get_width() - mini_map.get_width()) / 2
+
+        item_bar_length = empty_bar.get_width() * 9
+        x_pos_of_item_bar = (WINDOW_SIZE[0] / 2) - (item_bar_length / 2)
+        y_pos_of_item_bar = WINDOW_SIZE[1] - empty_bar.get_height()
+
+       
+    elif fullscreen == False:
+        #print("NOT FS")
+        window_width = 600
+        window_height = 400
+        WINDOW_SIZE = (window_width,window_height)
+        window = pygame.display.set_mode(WINDOW_SIZE,pygame.RESIZABLE)
+        display = pygame.Surface((window_width/2,window_height/2))
+
+        mini_map = pygame.transform.scale(display, (150,100))
+
+        frame_difference = (map_frame.get_width() - mini_map.get_width()) / 2
+
+        item_bar_length = empty_bar.get_width() * 9
+        x_pos_of_item_bar = (WINDOW_SIZE[0] / 2) - (item_bar_length / 2)
+        y_pos_of_item_bar = WINDOW_SIZE[1] - empty_bar.get_height()
+
+      
+
     clock.tick(FPS)
+    
+    current_FPS = int(clock.get_fps())
+    textsurface = myfont.render(str(current_FPS),False,(255,255,255))
 
     display.fill((46,124,180))
 
@@ -694,11 +747,14 @@ while True:
 
     control_mouse_on_blocks()
 
-    print(mouse_on_blocks)
+    #print(mouse_on_blocks)
     particles.append([[mouse_pos[0] / 2,mouse_pos[1] / 2],[random.randint(0,20) / 10 - 1, -2], random.randint(4,6)])
     particle_tiles = []
     particle_momentum = []
     
+    if mouse_on_blocks:
+        particles = []
+
     for particle in particles:
 
         particle_momentum.append(particle[1])
@@ -881,6 +937,14 @@ while True:
                 print("Restart")
                 restart_game()
 
+            if event.key == K_F11:
+
+                if fullscreen:
+                    fullscreen = False
+
+                elif fullscreen == False:
+                    fullscreen = True
+
             if event.key == K_e:
                 if inventory_is_open == False:
                     inventory_is_open = True
@@ -970,6 +1034,7 @@ while True:
     window.blit(map_frame,(WINDOW_SIZE[0]-map_frame.get_width(),0))
     draw_item_bar(x_pos_of_item_bar,y_pos_of_item_bar)
     put_item_on_item_bar(x_pos_of_item_bar,y_pos_of_item_bar)
+    window.blit(textsurface,(0,0))
 
     if inventory_is_open:
         open_inventory(x_pos_of_inventory-100,y_pos_of_inventory)

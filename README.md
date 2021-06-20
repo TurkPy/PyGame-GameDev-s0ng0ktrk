@@ -22,5 +22,6 @@ py/python3 pygame2.py
 * W,A,S,D to movement
 * Arrow keys to movement
 * Press 'F5' to restart game
+* Press 'F11' for toggle fullscreen mode
 
 //////////////////////////
