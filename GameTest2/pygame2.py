@@ -1,4 +1,4 @@
-import pygame, sys, os, random, turtle, ctypes
+import pygame, sys, os, random, turtle, ctypes, time
 from pygame.locals import *
 
 pygame.init()
@@ -13,6 +13,7 @@ map_frame = pygame.image.load("assets/hud/map_frame.png")
 empty_bar = pygame.image.load("assets/item_bar/not_selected.png")
 selected_bar = pygame.image.load("assets/item_bar/selected.png")
 
+opening_sound = pygame.mixer.Sound('sfx/opening1.wav')
 fall_off_sound = pygame.mixer.Sound('sfx/fall_off.wav')
 jump_sound = pygame.mixer.Sound('sfx/jump.wav')
 grass_sounds = [pygame.mixer.Sound('sfx/grass_0.wav'),pygame.mixer.Sound('sfx/grass_1.wav')]
@@ -21,8 +22,6 @@ grass_sounds[1].set_volume(0.2)
 fall_off_sound.set_volume(0.3)
 pygame.mixer.music.load('sfx/music.wav')
 pygame.mixer.music.set_volume(0.7)
-
-#pygame.mixer.music.play(-1)
 
 ####################
 
@@ -51,6 +50,18 @@ grass_sound_timer = 0
 
 # FUNCTIONS #
 
+def game_intro():
+
+    opening = True
+    pygame.time.wait(1000)
+    window.fill((0,0,0))
+    opening_sound.play()
+    window.blit(start_text_surface, text_rect)
+    pygame.display.update()
+    pygame.time.wait(5000)
+    opening = False
+    pygame.mixer.music.play(-1)
+        
 def change_action(action_var,frame,new_value):
     if action_var != new_value:
         action_var = new_value
@@ -638,8 +649,16 @@ add_item_to_inventory_list("grass")
 
 
 myfont = pygame.font.SysFont('Arial', 30)
+pixel_font = pygame.font.Font('fonts/pixelart.ttf',40)
+
+coderator_text = "CODERATOR"
+
+start_text_surface = pixel_font.render(coderator_text,False,(255,255,255))
+text_rect = start_text_surface.get_rect(center=(window_width/2,window_height/2))
 
 ######################
+
+game_intro()
 
 while True:
 
@@ -684,6 +703,9 @@ while True:
     display.fill((46,124,180))
 
     mouse_pos = list(pygame.mouse.get_pos())
+
+    if particle_bool == False:
+        particles = []
 
     if grass_sound_timer > 0:
         grass_sound_timer -= 1
