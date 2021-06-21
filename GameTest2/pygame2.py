@@ -1,4 +1,5 @@
 import pygame, sys, os, random, turtle, ctypes, time
+import data.engine as e
 from pygame.locals import *
 
 pygame.init()
@@ -7,20 +8,27 @@ pygame.mixer.pre_init(44100, -16, 2, 512)
 
 # LOADING STUFFS #
 
-dirt = pygame.image.load('dirt.png')
-grass = pygame.image.load('grass.png')
-map_frame = pygame.image.load("assets/hud/map_frame.png")
-empty_bar = pygame.image.load("assets/item_bar/not_selected.png")
-selected_bar = pygame.image.load("assets/item_bar/selected.png")
+# ENVIRONMENT
+dirt = pygame.image.load('data/images/blocks/dirt.png')
+grass = pygame.image.load('data/images/blocks/grass.png')
+plant = pygame.image.load('data/images/blocks/plant.png')
 
-opening_sound = pygame.mixer.Sound('sfx/opening1.wav')
-fall_off_sound = pygame.mixer.Sound('sfx/fall_off.wav')
-jump_sound = pygame.mixer.Sound('sfx/jump.wav')
-grass_sounds = [pygame.mixer.Sound('sfx/grass_0.wav'),pygame.mixer.Sound('sfx/grass_1.wav')]
+# HUD
+map_frame = pygame.image.load("data/images/hud/map_frame.png")
+empty_bar = pygame.image.load("data/images/hud/not_selected.png")
+selected_bar = pygame.image.load("data/images/hud/selected.png")
+
+# OBJECTS
+jumper = pygame.image.load("data/images/objects/jumper.png")
+
+opening_sound = pygame.mixer.Sound('data/audios/opening1.wav')
+fall_off_sound = pygame.mixer.Sound('data/audios/fall_off.wav')
+jump_sound = pygame.mixer.Sound('data/audios/jump.wav')
+grass_sounds = [pygame.mixer.Sound('data/audios/grass_0.wav'),pygame.mixer.Sound('data/audios/grass_1.wav')]
 grass_sounds[0].set_volume(0.2)
 grass_sounds[1].set_volume(0.2)
 fall_off_sound.set_volume(0.3)
-pygame.mixer.music.load('sfx/music.wav')
+pygame.mixer.music.load('data/audios/music.wav')
 pygame.mixer.music.set_volume(0.7)
 
 ####################
@@ -41,12 +49,40 @@ display = pygame.Surface((window_width/2,window_height/2))
 pygame.display.set_caption('GameDev')
 background_object = [[0.25,[120,10,70,400]],[0.25,[280,30,40,400]],[0.5,[-20,40,40,400]],[0.5,[70,90,100,400]],[0.5,[250,80,120,400]],[0.5,[400,50,140,400]]]
 
-global animationFrames
-animationFrames = {}
+e.load_animations("data/images/entities/")
+
+
+tile_index = {1:grass,
+              2:dirt,
+              3:plant}
 
 grass_sound_timer = 0
+CHUNK_SIZE = 8
 
 #####################
+
+# CLASSES #
+
+class jumper_obj():
+
+    def __init__(self, loc):
+
+        self.loc = loc
+
+    def render(self, surf, scroll):
+
+        surf.blit(jumper, [self.loc[0] - scroll[0], self.loc[1] - scroll[1]])
+
+    def get_rect(self):
+
+        return pygame.Rect(self.loc[0], self.loc[1], jumper.get_width(), jumper.get_height())
+
+
+    def collision_test(self, rect):
+
+        jumper_rect = self.get_rect()
+        return jumper_rect.colliderect(rect)
+
 
 # FUNCTIONS #
 
@@ -68,22 +104,6 @@ def change_action(action_var,frame,new_value):
         frame = 0
     return action_var,frame
 
-def load_animation(path, frameDurations):
-    global animationFrames
-    animation_name = path.split('/')[-1]
-    animation_frame_data = []
-    n = 0
-    for frame in frameDurations:
-        animation_frame_id = animation_name + '_' + str(n)
-        img_loc = path + '/' + animation_frame_id + '.png'
-        animation_image = pygame.image.load(img_loc)
-        animation_image.set_colorkey((255,255,255))
-        animationFrames[animation_frame_id] = animation_image.copy()
-        for i in range(frame):
-            animation_frame_data.append(animation_frame_id)
-        n += 1
-    return animation_frame_data, animation_image
-
 def load_item_bar():
 
     image_name = "selected_"
@@ -93,10 +113,10 @@ def load_item_bar():
     while True:
 
         try:
-            image_path = "assets/item_bar/"+image_name+str(n)+".png"
+            image_path = "data/images/huditem_bar/"+image_name+str(n)+".png"
             image = pygame.image.load(image_path)
             image_list.append(image)
-            print(image)
+            #print(image)
             n += 1
 
         except FileNotFoundError as error:
@@ -105,7 +125,41 @@ def load_item_bar():
     return image_list
 
 
-def load_map(path):
+def generate_chunk(x,y):
+
+    chunk_data = []
+
+    for y_pos in range(CHUNK_SIZE):
+
+        for x_pos in range(CHUNK_SIZE):
+
+            target_x = x * CHUNK_SIZE + x_pos
+            target_y = y * CHUNK_SIZE + y_pos
+            tile_type = 0
+
+            if target_y > 10:
+                tile_type = 2 # dirt
+
+            elif target_y == 10:
+                tile_type = 1 # grass
+
+            elif target_y == 9:
+
+                if random.randint(1,5) == 1:
+
+                    tile_type = 3 # plant
+
+            if tile_type != 0:
+
+                chunk_data.append([[target_x,target_y],tile_type])
+
+    return chunk_data
+
+
+
+
+
+"""def load_map(path):
     f = open(path + '.txt', 'r')
     data = f.read()
     f.close()
@@ -113,16 +167,7 @@ def load_map(path):
     game_map = []
     for row in data:
         game_map.append(list(row))
-    return game_map
-
-def collision_test(rect, tiles):
-    hit_list = []
-
-    for tile in tiles:
-        if rect.colliderect(tile):
-            hit_list.append(tile)
-
-    return hit_list
+    return game_map"""
 
 def move_particle(rects, tiles):
     collision_types_of_particles = {'top': False, 'bottom': False, 'right': False, 'left': False}
@@ -153,31 +198,6 @@ def move_particle(rects, tiles):
                     collision_types_of_particles['top'] = True
 
     return rects, collision_types_of_particles
-
-def move(rect, movement, tiles):
-    collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
-
-    rect.x += movement[0]
-    hit_list = collision_test(rect, tiles)
-    for tile in hit_list:
-        if movement[0] > 0:
-            rect.right = tile.left
-            collision_types['right'] = True
-        elif movement[0] < 0:
-            rect.left = tile.right
-            collision_types['left'] = True
-
-    rect.y += movement[1]
-    hit_list = collision_test(rect, tiles)
-    for tile in hit_list:
-        if movement[1] > 0:
-            rect.bottom = tile.top
-            collision_types['bottom'] = True
-        elif movement[1] < 0:
-            rect.top = tile.bottom
-            collision_types['top'] = True
-
-    return rect, collision_types
 
 
 def restart_game():
@@ -445,8 +465,8 @@ def open_inventory(x,y):
                     slot_list[i][i2] = 0
 
             except IndexError as error:
-                print(selected_slot)
-
+                #print(selected_slot)
+                pass
         x_pos = x
         y_pos += 32
 
@@ -596,29 +616,22 @@ selected_item = [50,50]
 
 true_scroll = [0,0]
 
-animation_database = {}
-animation_database['run'],animation_image = load_animation('assets/run',[7,7])
-animation_database['idle'],animation_image = load_animation('assets/idle',[7,7,15])
-
-player_action = 'idle'
-player_frame = 0
-player_flip = 0
-
 ######################
 
 # SECOND DEFINITIONS #
 
-player_rect = pygame.Rect(50,50,animation_image.get_width(),animation_image.get_height())
-game_map = load_map('map')
-game_map.pop()
-player_rect.x = 90
-player_rect.y = 160
+player = e.entity(100,100,5,13,'player')
+
+game_map = {}
+
 mouse_pos = [0,0]
+
 slot_list = [[],[],[],[],[],[]]
 slot_list_with_item_id = [[],[],[],[],[],[]]
 slot_list_with_coors = [[],[],[],[],[],[]]
-particles = []
 item_list = ['dirt','grass']
+particles = []
+
 block_type = '1'
 pressed_number = 0
 current_FPS = FPS
@@ -649,12 +662,18 @@ add_item_to_inventory_list("grass")
 
 
 myfont = pygame.font.SysFont('Arial', 30)
-pixel_font = pygame.font.Font('fonts/pixelart.ttf',40)
+pixel_font = pygame.font.Font('data/fonts/pixelart.ttf',40)
 
 coderator_text = "CODERATOR"
 
 start_text_surface = pixel_font.render(coderator_text,False,(255,255,255))
 text_rect = start_text_surface.get_rect(center=(window_width/2,window_height/2))
+
+jumper_objects = []
+
+for i in range(5):
+
+    jumper_objects.append(jumper_obj((random.randint(0,600)-300,80)))
 
 ######################
 
@@ -711,11 +730,10 @@ while True:
         grass_sound_timer -= 1
 
 
-
 # SCROLL & PARALLAX #
 
-    true_scroll[0] += (player_rect.x-true_scroll[0]-144)/20
-    true_scroll[1] += (player_rect.y-true_scroll[1]-89)/20
+    true_scroll[0] += (player.x-true_scroll[0]-144)/20
+    true_scroll[1] += (player.y-true_scroll[1]-89)/20
 
     scroll = true_scroll.copy()
     scroll[1] = int(scroll[1])
@@ -745,29 +763,50 @@ while True:
 # DRAW MAP #
 
     tile_rects = []
-    non_air_tile_rects = []
-    non_air_tile_rects_with_scroll = []
-    y =  0
-    for row in game_map:
-        x = 0
-        for tile in row:
+    ### TILE RENDERING ###
 
-            if tile == '1':
-                display.blit(dirt, (x * TILE_SIZE - scroll[0], y * TILE_SIZE - scroll[1]))
-            if tile == '2':
-                display.blit(grass, (x * TILE_SIZE - scroll[0], y * TILE_SIZE - scroll[1]))
-            if tile == '1' or tile == '2':
-                tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-                non_air_tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-                non_air_tile_rects_with_scroll.append(pygame.Rect(x * TILE_SIZE - scroll[0] , y * TILE_SIZE - scroll[1] , TILE_SIZE, TILE_SIZE))
-            if tile == '0':
-                tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE , 0, 0))
-            x += 1
-        y += 1
+    for y in range(3):
 
+        for x in range(4):
+
+            target_x = x - 1 + int(round(scroll[0]/(CHUNK_SIZE*TILE_SIZE)))
+            target_y = y - 1 + int(round(scroll[1]/(CHUNK_SIZE*TILE_SIZE)))
+            target_chunk = str(target_x) + ';' + str(target_y)
+
+            if target_chunk not in game_map:
+
+                game_map[target_chunk] = generate_chunk(target_x,target_y)
+
+            for tile in game_map[target_chunk]:
+                display.blit(tile_index[tile[1]],(tile[0][0]*TILE_SIZE-scroll[0],tile[0][1]*TILE_SIZE-scroll[1]))
+
+                if tile[1] in [1,2]:
+                    tile_rects.append(pygame.Rect(tile[0][0]*TILE_SIZE,tile[0][1]*TILE_SIZE,TILE_SIZE,TILE_SIZE))
+
+
+    """non_air_tile_rects = []
+                non_air_tile_rects_with_scroll = []
+                y =  0
+                for row in game_map:
+                    x = 0
+                    for tile in row:
+            
+                        if tile == '1':
+                            display.blit(dirt, (x * TILE_SIZE - scroll[0], y * TILE_SIZE - scroll[1]))
+                        if tile == '2':
+                            display.blit(grass, (x * TILE_SIZE - scroll[0], y * TILE_SIZE - scroll[1]))
+                        if tile == '1' or tile == '2':
+                            tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                            non_air_tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                            non_air_tile_rects_with_scroll.append(pygame.Rect(x * TILE_SIZE - scroll[0] , y * TILE_SIZE - scroll[1] , TILE_SIZE, TILE_SIZE))
+                        if tile == '0':
+                            tile_rects.append(pygame.Rect(x * TILE_SIZE, y * TILE_SIZE , 0, 0))
+                        x += 1
+                    y += 1
+            """
 #############
 
-    control_mouse_on_blocks()
+    #control_mouse_on_blocks()
 
     #print(mouse_on_blocks)
     particles.append([[mouse_pos[0] / 2,mouse_pos[1] / 2],[random.randint(0,20) / 10 - 1, -2], random.randint(4,6)])
@@ -825,19 +864,19 @@ while True:
                                                                                        """
 #  PLAYER MOVEMENT & PHYSICS #
     
-    for tile in non_air_tile_rects_with_scroll:
-        
-        for index, particle_tile in enumerate(particle_tiles):
+    """for tile in non_air_tile_rects_with_scroll:
+                    
+                    for index, particle_tile in enumerate(particle_tiles):
+                        
+                        #if pygame.Rect.contains(tile,particle_tile):
+                            #print("COLLIDE")
             
-            #if pygame.Rect.contains(tile,particle_tile):
-                #print("COLLIDE")
-
-            if pygame.Rect.colliderect(particle_tile,tile):
-                #print("COLLIDE 2")
-                try:
-                    particles.pop(index)
-                except:
-                    pass
+                        if pygame.Rect.colliderect(particle_tile,tile):
+                            #print("COLLIDE 2")
+                            try:
+                                particles.pop(index)
+                            except:
+                                pass"""
 
 
     #particle_tiles, collision_types_of_particles = move_particle(particle_tiles, non_air_tile_rects_with_scroll, particle_momentum)
@@ -857,25 +896,26 @@ while True:
     if playerYMomentum > 5:
         playerYMomentum = 5
 
-    if player_movement[0] > 0:
-        player_action,player_frame = change_action(player_action,player_frame,'run')
-        player_flip = False
 
     if player_movement[0] == 0:
-        player_action,player_frame = change_action(player_action,player_frame,'idle')
+        player.set_action('idle')
 
     if player_movement[0] < 0:
-        player_action,player_frame = change_action(player_action,player_frame,'run')
-        player_flip = True
+        player.set_flip(True)
+        player.set_action('run')       
 
-    player_rect, collisons = move(player_rect, player_movement, tile_rects)
+    if player_movement[0] > 0:
+        player.set_flip(False)
+        player.set_action('run')
 
-    if collisons['right'] == True or collisons['left'] == True:
+    collision_types = player.move(player_movement, tile_rects)
+
+    if collision_types['right'] == True or collision_types['left'] == True:
         grass_sound_control = False
     else:
         grass_sound_control = True
 
-    if collisons['bottom']:
+    if collision_types['bottom']:
         playerYMomentum = 0
         airTimer = 0
         if grass_sound_control:
@@ -886,30 +926,32 @@ while True:
     else:
         airTimer += 1
 
-    if collisons['top']:
+    if collision_types['top']:
         playerYMomentum = 0
 
 
     if airTimer > 10 and airTimer < 20:
         falling = True
 
-    if collisons['bottom'] == True and falling == True and first_time == False:
+    if collision_types['bottom'] == True and falling == True and first_time == False:
         fall_off_sound.play()
         falling = False
 
-    if player_rect.y > 500:
-        player_rect.x = 50
-        player_rect.y = 179
+    if player.y > 500:
+        player.x = 50
+        player.y = 179
         airTimer = 0
 
 ###########################
 
-    player_frame += 1
-    if player_frame >= len(animation_database[player_action]):
-        player_frame = 0
-    player_img_id = animation_database[player_action][player_frame]
-    player_img = animationFrames[player_img_id]
-    display.blit(pygame.transform.flip(player_img,player_flip,False),(player_rect.x - scroll[0], player_rect.y - scroll[1]))
+    player.change_frame(1)
+    player.display(display,scroll)
+
+    for jumper in jumper_objects:
+
+        #jumper.render(display,scroll)
+        pass
+        ####BURDA KALDIK####
 
 
 # EVENT LISTENING #
